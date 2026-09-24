@@ -16,62 +16,119 @@ const toast = document.querySelector('[data-toast]');
 
 function notify(message, type = 'info') {
   if (!toast) return;
+
   toast.textContent = message;
   toast.dataset.type = type;
   toast.classList.add('show');
+
   clearTimeout(notify.timer);
-  notify.timer = setTimeout(() => toast.classList.remove('show'), 4200);
+
+  notify.timer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 4200);
 }
 
 function escapeHtml(value = '') {
-  return value.replace(/[&<>'"]/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
+  return value.replace(
+    /[&<>'"]/g,
+    (char) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+      })[char]
+  );
 }
 
 function formatBytes(bytes = 0) {
   if (!bytes) return '—';
-  const units = ['B','KB','MB','GB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${units[index]}`;
+
+  const units = ['B', 'KB', 'MB', 'GB'];
+
+  const index = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1
+  );
+
+  return `${(bytes / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${
+    units[index]
+  }`;
 }
 
 async function jsonFetch(url, options = {}) {
   const response = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(options.headers || {}) }
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(options.headers || {})
+    }
   });
+
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Request failed.');
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Request failed.');
+  }
+
   return data;
 }
 
 function setAuthenticated(authenticated) {
   loginPanel.hidden = authenticated;
   managerPanel.hidden = !authenticated;
-  if (authenticated) loadAdminFiles();
+
+  if (authenticated) {
+    loadAdminFiles();
+  }
 }
 
 async function checkAuth() {
   try {
     const data = await jsonFetch('/api/auth-status');
+
     setAuthenticated(Boolean(data.authenticated));
   } catch {
     setAuthenticated(false);
   }
 }
 
+/* =========================================================
+   SEND OTP
+========================================================= */
+
 sendOtpButton?.addEventListener('click', async () => {
   const original = sendOtpButton.textContent;
+
   sendOtpButton.disabled = true;
   sendOtpButton.textContent = 'Sending…';
+
   try {
-    await jsonFetch('/api/send-otp', { method: 'POST', body: '{}' });
+    await jsonFetch('/api/send-otp', {
+      method: 'POST',
+      body: '{}'
+    });
+
     otpForm.hidden = false;
     otpInput?.focus();
-    notify('OTP sent. Check the administrator Gmail inbox.', 'success');
+
+    notify(
+      'OTP sent. Check the administrator Gmail inbox.',
+      'success'
+    );
+
     let remaining = 60;
+
     const interval = setInterval(() => {
       remaining -= 1;
-      sendOtpButton.textContent = remaining > 0 ? `Resend in ${remaining}s` : 'Send a new OTP';
+
+      sendOtpButton.textContent =
+        remaining > 0
+          ? `Resend in ${remaining}s`
+          : 'Send a new OTP';
+
       if (remaining <= 0) {
         clearInterval(interval);
         sendOtpButton.disabled = false;
@@ -79,22 +136,40 @@ sendOtpButton?.addEventListener('click', async () => {
     }, 1000);
   } catch (error) {
     notify(error.message, 'error');
+
     sendOtpButton.disabled = false;
     sendOtpButton.textContent = original;
   }
 });
 
+/* =========================================================
+   VERIFY OTP
+========================================================= */
+
 otpForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const submit = otpForm.querySelector('button[type="submit"]');
+
+  const submit = otpForm.querySelector(
+    'button[type="submit"]'
+  );
+
   submit.disabled = true;
+
   try {
     await jsonFetch('/api/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ otp: otpInput.value })
+      body: JSON.stringify({
+        otp: otpInput.value
+      })
     });
+
     otpInput.value = '';
-    notify('Verification successful.', 'success');
+
+    notify(
+      'Verification successful.',
+      'success'
+    );
+
     setAuthenticated(true);
   } catch (error) {
     notify(error.message, 'error');
@@ -103,100 +178,376 @@ otpForm?.addEventListener('submit', async (event) => {
   }
 });
 
+/* =========================================================
+   FILE UPLOAD
+========================================================= */
+
 uploadForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const file = fileInput.files?.[0];
-  if (!file) return notify('Choose a file first.', 'error');
 
-  const submit = uploadForm.querySelector('button[type="submit"]');
+  const file = fileInput.files?.[0];
+
+  if (!file) {
+    return notify(
+      'Choose a file first.',
+      'error'
+    );
+  }
+
+  const submit = uploadForm.querySelector(
+    'button[type="submit"]'
+  );
+
   submit.disabled = true;
+
   progressWrap.hidden = false;
   progressBar.value = 5;
-  progressText.textContent = 'Preparing secure upload…';
+  progressText.textContent =
+    'Preparing secure upload…';
 
   try {
-    const ticket = await jsonFetch('/api/upload-url', {
-      method: 'POST',
-      body: JSON.stringify({ filename: file.name, category: categoryInput.value, size: file.size })
-    });
+    /*
+     * Step 1:
+     * Ask our protected API for a temporary
+     * Vercel Blob upload URL.
+     */
+    const ticket = await jsonFetch(
+      '/api/upload-url',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          filename: file.name,
+          category: categoryInput.value,
+          size: file.size
+        })
+      }
+    );
+
+    if (!ticket.presignedUrl) {
+      throw new Error(
+        'The server did not return a valid upload URL.'
+      );
+    }
 
     progressBar.value = 25;
-    progressText.textContent = 'Uploading to secure storage…';
+    progressText.textContent =
+      'Uploading to secure storage…';
 
-    const upload = await fetch(ticket.presignedUrl, {
-      method: 'PUT',
-      body: file,
-      headers: file.type ? { 'Content-Type': file.type } : {}
-    });
-    if (!upload.ok) throw new Error('Upload failed while sending the file to storage.');
+    /*
+     * Step 2:
+     * Upload directly from the browser to
+     * Vercel Blob using the signed URL.
+     *
+     * Do NOT manually set Content-Type here.
+     * The presigned upload should be sent
+     * using the file body directly.
+     */
+    let upload;
 
+    try {
+      upload = await fetch(
+        ticket.presignedUrl,
+        {
+          method: 'PUT',
+          body: file
+        }
+      );
+    } catch (networkError) {
+      console.error(
+        'Blob upload network error:',
+        networkError
+      );
+
+      throw new Error(
+        'Could not connect to file storage. Please refresh the page and try again.'
+      );
+    }
+
+    /*
+     * Step 3:
+     * If Blob returned an HTTP error,
+     * capture its response so debugging is easier.
+     */
+    if (!upload.ok) {
+      const responseText =
+        await upload
+          .text()
+          .catch(() => '');
+
+      console.error(
+        'Blob upload failed:',
+        upload.status,
+        upload.statusText,
+        responseText
+      );
+
+      if (upload.status === 401) {
+        throw new Error(
+          'Upload authorization failed. Please sign in again and retry.'
+        );
+      }
+
+      if (upload.status === 403) {
+        throw new Error(
+          'The file storage rejected this upload. Please retry or contact the administrator.'
+        );
+      }
+
+      if (upload.status === 413) {
+        throw new Error(
+          'The selected file is too large.'
+        );
+      }
+
+      throw new Error(
+        responseText
+          ? `Upload failed (${upload.status}): ${responseText}`
+          : `Upload failed with status ${upload.status}.`
+      );
+    }
+
+    /*
+     * Step 4:
+     * Upload completed successfully.
+     */
     progressBar.value = 100;
-    progressText.textContent = 'Upload complete.';
-    notify('File uploaded successfully.', 'success');
+    progressText.textContent =
+      'Upload complete.';
+
+    notify(
+      'File uploaded successfully.',
+      'success'
+    );
+
     uploadForm.reset();
-    setTimeout(loadAdminFiles, 700);
+
+    /*
+     * Give Blob a short moment before
+     * refreshing the file listing.
+     */
+    setTimeout(() => {
+      loadAdminFiles();
+    }, 700);
   } catch (error) {
-    notify(error.message, 'error');
-    progressText.textContent = 'Upload did not complete.';
+    console.error(
+      'File upload error:',
+      error
+    );
+
+    notify(
+      error.message ||
+        'The upload could not be completed.',
+      'error'
+    );
+
+    progressText.textContent =
+      'Upload did not complete.';
   } finally {
     submit.disabled = false;
-    setTimeout(() => { progressWrap.hidden = true; progressBar.value = 0; }, 1800);
+
+    setTimeout(() => {
+      progressWrap.hidden = true;
+      progressBar.value = 0;
+    }, 1800);
   }
 });
+
+/* =========================================================
+   LOAD ADMIN FILES
+========================================================= */
 
 async function loadAdminFiles() {
   adminState.hidden = false;
-  adminState.innerHTML = '<span class="spinner"></span><span>Loading uploaded files…</span>';
+
+  adminState.innerHTML =
+    '<span class="spinner"></span><span>Loading uploaded files…</span>';
+
   adminList.innerHTML = '';
+
   try {
-    const data = await jsonFetch('/api/admin-files');
+    const data =
+      await jsonFetch(
+        '/api/admin-files'
+      );
+
     const files = data.files || [];
+
     if (!files.length) {
-      adminState.innerHTML = '<strong>No uploaded files yet.</strong><span>Use the form above to add the first document or video.</span>';
+      adminState.innerHTML =
+        '<strong>No uploaded files yet.</strong><span>Use the form above to add the first document or video.</span>';
+
       return;
     }
+
     adminState.hidden = true;
-    adminList.innerHTML = files.map((file) => `
-      <div class="admin-file-row" data-file-row>
-        <div>
-          <strong>${escapeHtml(file.name)}</strong>
-          <span>${escapeHtml(file.category)} · ${formatBytes(file.size)} · ${new Date(file.uploadedAt).toLocaleDateString()}</span>
-        </div>
-        <div class="admin-file-actions">
-          <a class="btn btn-small btn-outline" href="${encodeURI(file.url)}" target="_blank" rel="noopener">Open</a>
-          <button class="btn btn-small btn-danger" type="button" data-delete data-url="${encodeURI(file.url)}" data-path="${escapeHtml(file.pathname)}">Delete</button>
-        </div>
-      </div>`).join('');
+
+    adminList.innerHTML = files
+      .map(
+        (file) => `
+          <div
+            class="admin-file-row"
+            data-file-row
+          >
+            <div>
+              <strong>
+                ${escapeHtml(file.name)}
+              </strong>
+
+              <span>
+                ${escapeHtml(file.category)}
+                ·
+                ${formatBytes(file.size)}
+                ·
+                ${new Date(
+                  file.uploadedAt
+                ).toLocaleDateString()}
+              </span>
+            </div>
+
+            <div
+              class="admin-file-actions"
+            >
+              <a
+                class="btn btn-small btn-outline"
+                href="${encodeURI(file.url)}"
+                target="_blank"
+                rel="noopener"
+              >
+                Open
+              </a>
+
+              <button
+                class="btn btn-small btn-danger"
+                type="button"
+                data-delete
+                data-url="${encodeURI(file.url)}"
+                data-path="${escapeHtml(
+                  file.pathname
+                )}"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        `
+      )
+      .join('');
   } catch (error) {
-    if (/verification/i.test(error.message)) return setAuthenticated(false);
+    if (
+      /verification/i.test(
+        error.message
+      )
+    ) {
+      return setAuthenticated(false);
+    }
+
     adminState.hidden = false;
-    adminState.innerHTML = `<strong>Storage unavailable.</strong><span>${escapeHtml(error.message)}</span>`;
+
+    adminState.innerHTML = `
+      <strong>
+        Storage unavailable.
+      </strong>
+      <span>
+        ${escapeHtml(error.message)}
+      </span>
+    `;
   }
 }
 
-adminList?.addEventListener('click', async (event) => {
-  const button = event.target.closest('[data-delete]');
-  if (!button) return;
-  const name = button.closest('[data-file-row]')?.querySelector('strong')?.textContent || 'this file';
-  if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
-  button.disabled = true;
-  try {
-    await jsonFetch('/api/delete-file', {
-      method: 'DELETE',
-      body: JSON.stringify({ url: decodeURI(button.dataset.url), pathname: button.dataset.path })
-    });
-    notify('File deleted.', 'success');
-    loadAdminFiles();
-  } catch (error) {
-    notify(error.message, 'error');
-    button.disabled = false;
-  }
-});
+/* =========================================================
+   DELETE FILE
+========================================================= */
 
-logoutButton?.addEventListener('click', async () => {
-  try { await jsonFetch('/api/logout', { method: 'POST', body: '{}' }); } catch {}
-  setAuthenticated(false);
-  notify('Signed out.', 'success');
-});
+adminList?.addEventListener(
+  'click',
+  async (event) => {
+    const button =
+      event.target.closest(
+        '[data-delete]'
+      );
+
+    if (!button) return;
+
+    const name =
+      button
+        .closest('[data-file-row]')
+        ?.querySelector('strong')
+        ?.textContent ||
+      'this file';
+
+    if (
+      !confirm(
+        `Delete ${name}? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    button.disabled = true;
+
+    try {
+      await jsonFetch(
+        '/api/delete-file',
+        {
+          method: 'DELETE',
+          body: JSON.stringify({
+            url: decodeURI(
+              button.dataset.url
+            ),
+            pathname:
+              button.dataset.path
+          })
+        }
+      );
+
+      notify(
+        'File deleted.',
+        'success'
+      );
+
+      loadAdminFiles();
+    } catch (error) {
+      notify(
+        error.message,
+        'error'
+      );
+
+      button.disabled = false;
+    }
+  }
+);
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+logoutButton?.addEventListener(
+  'click',
+  async () => {
+    try {
+      await jsonFetch(
+        '/api/logout',
+        {
+          method: 'POST',
+          body: '{}'
+        }
+      );
+    } catch {
+      // Even if the request fails,
+      // return the interface to signed-out state.
+    }
+
+    setAuthenticated(false);
+
+    notify(
+      'Signed out.',
+      'success'
+    );
+  }
+);
+
+/* =========================================================
+   INITIAL AUTH CHECK
+========================================================= */
 
 checkAuth();
