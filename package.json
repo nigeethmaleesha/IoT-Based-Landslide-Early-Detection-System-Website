@@ -1,0 +1,17 @@
+{
+  "name": "iot-landslide-early-detection-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.6.1",
+    "nodemailer": "^7.0.6"
+  },
+  "devDependencies": {
+    "vercel": "^48.1.0"
+  }
+}
