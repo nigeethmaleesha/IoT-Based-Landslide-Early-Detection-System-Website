@@ -383,7 +383,7 @@ td strong { color:var(--navy-900); }
 @media(max-width:760px){.reference-list{padding-left:1.5rem}.reference-list li{padding-right:0}.sliit-identity img{max-width:190px}}
 
 
-/* Header branding: use the SLIIT crest in place of the old mountain icon. */
+/* Header branding: preserve original project icon alongside the SLIIT crest. */
 .site-header .brand-mark-sliit {
   width: 48px;
   height: 52px;
@@ -404,4 +404,25 @@ td strong { color:var(--navy-900); }
   .site-header .brand { gap: 8px; }
   .site-header .brand-copy strong { font-size: .75rem; }
   .site-header .brand-project-id { font-size: .66rem; }
+}
+
+/* Dual-logo brand — only within site headers */
+.site-header .header-brand-icons { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+.site-header .header-brand-icons .brand-mark { flex: 0 0 44px; }
+.site-header .header-brand-icons .brand-mark-sliit { flex: 0 0 39px; width: 39px; height: 44px; padding: 3px; }
+.site-header .brand { gap: 10px; white-space: nowrap; }
+.site-header .brand-copy { min-width: 0; }
+@media (max-width: 820px) {
+  .site-header .header-brand-icons { gap: 5px; }
+  .site-header .header-brand-icons .brand-mark { flex-basis: 36px; width: 36px; height: 36px; }
+  .site-header .header-brand-icons .brand-mark-sliit { flex-basis: 32px; width: 32px; height: 36px; padding: 2px; }
+  .site-header .brand { gap: 7px; }
+}
+@media (max-width: 430px) {
+  .site-header .header-brand-icons { gap: 3px; }
+  .site-header .header-brand-icons .brand-mark { flex-basis: 32px; width: 32px; height: 32px; border-radius: 9px; }
+  .site-header .header-brand-icons .brand-mark svg { width: 21px; height: 21px; }
+  .site-header .header-brand-icons .brand-mark-sliit { flex-basis: 28px; width: 28px; height: 32px; }
+  .site-header .brand-copy strong { font-size: .71rem; }
+  .site-header .brand-project-id { font-size: .64rem; }
 }
