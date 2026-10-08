@@ -368,3 +368,16 @@ td strong { color:var(--navy-900); }
   *, *::before, *::after { animation-duration:.001ms !important; transition-duration:.001ms !important; }
   .reveal { opacity:1; transform:none; }
 }
+
+/* Research detail additions: scoped to newly introduced content */
+.objective-cards{margin-top:22px;gap:18px}
+.objective-cards .feature-card p{line-height:1.65}
+.reference-list{list-style:decimal;padding-left:2rem;margin:0;display:grid;gap:13px}
+.reference-list li{padding:16px 18px 16px 8px;line-height:1.7;overflow-wrap:anywhere;border-bottom:1px solid rgba(84,107,127,.17)}
+.reference-list a{display:inline-block;margin-left:8px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.project-details{display:grid;gap:12px;margin-top:20px}
+.project-details>div{padding-bottom:12px;border-bottom:1px solid rgba(84,107,127,.16)}
+.project-details dt{font-weight:750;margin-bottom:3px}
+.project-details dd{margin:0;overflow-wrap:anywhere}
+.sliit-identity img{max-width:260px;max-height:300px;object-fit:contain;margin:auto}
+@media(max-width:760px){.reference-list{padding-left:1.5rem}.reference-list li{padding-right:0}.sliit-identity img{max-width:190px}}
