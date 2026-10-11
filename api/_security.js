@@ -16,7 +16,7 @@ export function assertConfigured() {
 }
 
 export function adminEmail() {
-  return process.env.ADMIN_EMAIL || 'kamkanamlage394@gmail.com';
+  return process.env.ADMIN_EMAIL || 'shashgunawardhana@gmail.com';
 }
 
 function hmac(value) {

@@ -31,7 +31,7 @@ A professional static research website built with **HTML, CSS and vanilla JavaSc
 1. Push this folder to a GitHub repository or import the folder into Vercel.
 2. Create/connect a **Public Vercel Blob** store to the project. New Vercel Blob projects can use OIDC automatically.
 3. In Vercel → Project → Settings → Environment Variables, add:
-   - `ADMIN_EMAIL=kamkanamlage394@gmail.com`
+   - `ADMIN_EMAIL=shashgunawardhana@gmail.com`
    - `GMAIL_USER=<gmail account used to send OTP>`
    - `GMAIL_APP_PASSWORD=<Gmail App Password>`
    - `OTP_SECRET=<long random secret, at least 32 characters>`
@@ -43,7 +43,7 @@ A professional static research website built with **HTML, CSS and vanilla JavaSc
 
 The sender Gmail account must have Google 2-Step Verification enabled and a Gmail **App Password** created. Do not put the Gmail password or App Password in source code. Store it only in Vercel Environment Variables.
 
-The recipient is currently configured as `kamkanamlage394@gmail.com`. It can be changed with the `ADMIN_EMAIL` environment variable.
+The recipient is currently configured as `shashgunawardhana@gmail.com`. It can be changed with the `ADMIN_EMAIL` environment variable.
 
 ## Notes about Vercel Blob
 
