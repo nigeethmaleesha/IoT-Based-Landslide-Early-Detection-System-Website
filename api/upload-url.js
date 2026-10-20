@@ -6,6 +6,7 @@ const DOC_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xls
 const VIDEO_EXTENSIONS = new Set(['mp4', 'webm']);
 const CATEGORIES = new Set(['proposal', 'research-paper', 'report', 'presentation', 'design', 'dataset', 'other', 'video']);
 const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
+const MAX_PRESENTATION_SIZE = 500 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
 function safeFilename(name) {
@@ -36,9 +37,9 @@ export default async function handler(req, res) {
     if (!allowed.has(ext)) return res.status(400).json({ error: `.${ext || '?'} files are not allowed in this category.` });
 
     const numericSize = Number(size) || 0;
-    const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_DOCUMENT_SIZE;
+    const maxSize = isVideo ? MAX_VIDEO_SIZE : category === 'presentation' ? MAX_PRESENTATION_SIZE : MAX_DOCUMENT_SIZE;
     if (numericSize <= 0 || numericSize > maxSize) {
-      return res.status(400).json({ error: `File must be smaller than ${Math.round(maxSize / 1024 / 1024)} MB.` });
+      return res.status(400).json({ error: `File must be no larger than ${Math.round(maxSize / 1024 / 1024)} MB.` });
     }
 
     const pathname = `uploads/${category}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${base}.${ext}`;
@@ -52,6 +53,8 @@ export default async function handler(req, res) {
     const { presignedUrl } = await presignUrl(token, {
       pathname,
       operation: 'put',
+      // Path already has a unique timestamp + random ID; omit Blob's extra suffix.
+      addRandomSuffix: false,
       validUntil
     });
 

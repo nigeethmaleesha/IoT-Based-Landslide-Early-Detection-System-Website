@@ -1,11 +1,6 @@
 import { list } from '@vercel/blob';
 import { requireAdmin } from './_security.js';
-
-function cleanName(pathname) {
-  return (pathname.split('/').pop() || 'file')
-    .replace(/^\d{13}-[a-f0-9]{8}-/, '')
-    .replace(/[-_]+/g, ' ');
-}
+import { displayFilename } from './_file-names.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -22,7 +17,7 @@ export default async function handler(req, res) {
         uploadedAt: blob.uploadedAt,
         contentType: blob.contentType || '',
         category: blob.pathname.split('/')[1] || 'other',
-        name: cleanName(blob.pathname)
+        name: displayFilename(blob.pathname)
       }))
       .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
     return res.status(200).json({ files });

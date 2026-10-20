@@ -1,11 +1,7 @@
 import { list } from '@vercel/blob';
+import { displayFilename } from './_file-names.js';
 
 const allowedPrefix = 'uploads/';
-
-function displayName(pathname) {
-  const leaf = pathname.split('/').pop() || 'file';
-  return leaf.replace(/^\d{13}-[a-f0-9]{8}-/, '').replace(/[-_]+/g, ' ');
-}
 
 function categoryFromPath(pathname) {
   const parts = pathname.split('/');
@@ -26,7 +22,7 @@ export default async function handler(req, res) {
         uploadedAt: blob.uploadedAt,
         contentType: blob.contentType || '',
         category: categoryFromPath(blob.pathname),
-        name: displayName(blob.pathname)
+        name: displayFilename(blob.pathname)
       }))
       .filter((file) => !type || (type === 'video' ? file.category === 'video' : file.category !== 'video'))
       .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));

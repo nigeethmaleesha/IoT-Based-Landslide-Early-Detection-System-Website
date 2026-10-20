@@ -182,169 +182,129 @@ otpForm?.addEventListener('submit', async (event) => {
    FILE UPLOAD
 ========================================================= */
 
+const DOCUMENT_LIMIT = 50 * 1024 * 1024;
+const PRESENTATION_LIMIT = 500 * 1024 * 1024;
+const VIDEO_LIMIT = 500 * 1024 * 1024;
+
+// Presentations can be selected in a group of three; keep other types single.
+function updateFileSelectionMode() {
+  if (!fileInput || !categoryInput) return;
+  fileInput.multiple = categoryInput.value === 'presentation';
+  if (!fileInput.multiple && fileInput.files?.length > 1) {
+    fileInput.value = '';
+  }
+}
+
+categoryInput?.addEventListener('change', updateFileSelectionMode);
+updateFileSelectionMode();
+
+async function uploadSingleFile(file, category) {
+  // Request a one-file signed URL, never send the binary to our API function.
+  const ticket = await jsonFetch('/api/upload-url', {
+    method: 'POST',
+    body: JSON.stringify({ filename: file.name, category, size: file.size })
+  });
+
+  if (!ticket.presignedUrl) {
+    throw new Error('The server did not return a valid upload URL.');
+  }
+
+  let upload;
+  try {
+    // Direct PUT keeps large uploads outside Vercel Function body limits.
+    // Do not set Content-Type manually on this signed request.
+    upload = await fetch(ticket.presignedUrl, { method: 'PUT', body: file });
+  } catch (networkError) {
+    console.error('Blob upload network error:', networkError);
+    throw new Error('Could not connect to file storage. Please refresh the page and try again.');
+  }
+
+  if (!upload.ok) {
+    const responseText = await upload.text().catch(() => '');
+    console.error('Blob upload failed:', upload.status, upload.statusText, responseText);
+    if (upload.status === 401) {
+      throw new Error('Upload authorization failed. Please sign in again and retry.');
+    }
+    if (upload.status === 403) {
+      throw new Error('The file storage rejected this upload. Please retry or contact the administrator.');
+    }
+    if (upload.status === 413) {
+      throw new Error('The selected file is too large.');
+    }
+    throw new Error(responseText
+      ? `Upload failed (${upload.status}): ${responseText}`
+      : `Upload failed with status ${upload.status}.`);
+  }
+}
+
 uploadForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  const file = fileInput.files?.[0];
+  const files = Array.from(fileInput.files || []);
+  const category = categoryInput.value;
+  const maxCount = category === 'presentation' ? 3 : 1;
+  const maxSize = category === 'video'
+    ? VIDEO_LIMIT
+    : category === 'presentation' ? PRESENTATION_LIMIT : DOCUMENT_LIMIT;
 
-  if (!file) {
-    return notify(
-      'Choose a file first.',
-      'error'
-    );
+  if (!files.length) return notify('Choose a file first.', 'error');
+  if (files.length > maxCount) {
+    return notify(category === 'presentation'
+      ? 'Select no more than 3 presentations at a time.'
+      : 'Select one file at a time for this category.', 'error');
   }
 
-  const submit = uploadForm.querySelector(
-    'button[type="submit"]'
-  );
+  for (const file of files) {
+    if (!file.size || file.size > maxSize) {
+      return notify(`"${file.name}" must be no larger than ${maxSize / 1024 / 1024} MB.`, 'error');
+    }
+  }
 
+  const submit = uploadForm.querySelector('button[type="submit"]');
   submit.disabled = true;
-
+  categoryInput.disabled = true;
+  fileInput.disabled = true;
   progressWrap.hidden = false;
   progressBar.value = 5;
-  progressText.textContent =
-    'Preparing secure upload…';
+  let uploadedCount = 0;
 
   try {
-    /*
-     * Step 1:
-     * Ask our protected API for a temporary
-     * Vercel Blob upload URL.
-     */
-    const ticket = await jsonFetch(
-      '/api/upload-url',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          filename: file.name,
-          category: categoryInput.value,
-          size: file.size
-        })
+    // Sequential uploads keep failures isolated and show which file failed.
+    for (const [index, file] of files.entries()) {
+      progressBar.value = 5 + Math.round(index * 90 / files.length);
+      progressText.textContent = `Uploading ${index + 1} of ${files.length}: ${file.name}`;
+      try {
+        await uploadSingleFile(file, category);
+        uploadedCount += 1;
+      } catch (error) {
+        throw new Error(`${file.name}: ${error.message}`);
       }
-    );
-
-    if (!ticket.presignedUrl) {
-      throw new Error(
-        'The server did not return a valid upload URL.'
-      );
     }
 
-    progressBar.value = 25;
-    progressText.textContent =
-      'Uploading to secure storage…';
-
-    /*
-     * Step 2:
-     * Upload directly from the browser to
-     * Vercel Blob using the signed URL.
-     *
-     * Do NOT manually set Content-Type here.
-     * The presigned upload should be sent
-     * using the file body directly.
-     */
-    let upload;
-
-    try {
-      upload = await fetch(
-        ticket.presignedUrl,
-        {
-          method: 'PUT',
-          body: file
-        }
-      );
-    } catch (networkError) {
-      console.error(
-        'Blob upload network error:',
-        networkError
-      );
-
-      throw new Error(
-        'Could not connect to file storage. Please refresh the page and try again.'
-      );
-    }
-
-    /*
-     * Step 3:
-     * If Blob returned an HTTP error,
-     * capture its response so debugging is easier.
-     */
-    if (!upload.ok) {
-      const responseText =
-        await upload
-          .text()
-          .catch(() => '');
-
-      console.error(
-        'Blob upload failed:',
-        upload.status,
-        upload.statusText,
-        responseText
-      );
-
-      if (upload.status === 401) {
-        throw new Error(
-          'Upload authorization failed. Please sign in again and retry.'
-        );
-      }
-
-      if (upload.status === 403) {
-        throw new Error(
-          'The file storage rejected this upload. Please retry or contact the administrator.'
-        );
-      }
-
-      if (upload.status === 413) {
-        throw new Error(
-          'The selected file is too large.'
-        );
-      }
-
-      throw new Error(
-        responseText
-          ? `Upload failed (${upload.status}): ${responseText}`
-          : `Upload failed with status ${upload.status}.`
-      );
-    }
-
-    /*
-     * Step 4:
-     * Upload completed successfully.
-     */
     progressBar.value = 100;
-    progressText.textContent =
-      'Upload complete.';
-
-    notify(
-      'File uploaded successfully.',
-      'success'
-    );
-
+    progressText.textContent = files.length === 1
+      ? 'Upload complete.' : `All ${files.length} uploads complete.`;
+    notify(files.length === 1
+      ? 'File uploaded successfully.'
+      : `${files.length} presentations uploaded successfully.`, 'success');
     uploadForm.reset();
-
-    /*
-     * Give Blob a short moment before
-     * refreshing the file listing.
-     */
-    setTimeout(() => {
-      loadAdminFiles();
-    }, 700);
+    updateFileSelectionMode();
   } catch (error) {
-    console.error(
-      'File upload error:',
-      error
-    );
-
-    notify(
-      error.message ||
-        'The upload could not be completed.',
-      'error'
-    );
-
-    progressText.textContent =
-      'Upload did not complete.';
+    console.error('File upload error:', error);
+    const prefix = uploadedCount
+      ? `${uploadedCount} of ${files.length} uploaded. ` : '';
+    notify(prefix + (error.message || 'The upload could not be completed.'), 'error');
+    progressText.textContent = uploadedCount
+      ? `${uploadedCount} of ${files.length} uploaded; upload stopped.`
+      : 'Upload did not complete.';
   } finally {
+    categoryInput.disabled = false;
+    fileInput.disabled = false;
     submit.disabled = false;
-
+    if (uploadedCount) {
+      // Also refresh the listing after partially successful batches.
+      setTimeout(() => { loadAdminFiles(); }, 700);
+    }
     setTimeout(() => {
       progressWrap.hidden = true;
       progressBar.value = 0;
