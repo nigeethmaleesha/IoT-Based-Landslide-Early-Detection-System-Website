@@ -182,7 +182,7 @@ otpForm?.addEventListener('submit', async (event) => {
    FILE UPLOAD
 ========================================================= */
 
-const DOCUMENT_LIMIT = 50 * 1024 * 1024;
+const DOCUMENT_LIMIT = 500 * 1024 * 1024;
 const PRESENTATION_LIMIT = 500 * 1024 * 1024;
 const VIDEO_LIMIT = 500 * 1024 * 1024;
 
