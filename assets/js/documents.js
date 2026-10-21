@@ -11,6 +11,7 @@ const labels = {
   presentation: 'Presentation',
   design: 'Design',
   dataset: 'Dataset',
+  checklist: 'Checklist',
   other: 'Other'
 };
 

@@ -4,7 +4,7 @@ import { requireAdmin } from './_security.js';
 
 const DOC_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'zip']);
 const VIDEO_EXTENSIONS = new Set(['mp4', 'webm']);
-const CATEGORIES = new Set(['proposal', 'research-paper', 'report', 'presentation', 'design', 'dataset', 'other', 'video']);
+const CATEGORIES = new Set(['proposal', 'research-paper', 'report', 'presentation', 'design', 'dataset', 'checklist', 'other', 'video']);
 const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
 const MAX_PRESENTATION_SIZE = 500 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
